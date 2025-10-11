@@ -64,7 +64,7 @@ class ReportDownloader:
         if self.browser:
             self.browser.close()
 
-    def _download_report_card(self, dept: str):
+    def _download_report_card(self, dept: str, filename: str):
         self.logger.info("Downloading report card...")
         try:
             self.logger.info("Locating 'Download report' button...")
@@ -79,7 +79,7 @@ class ReportDownloader:
             with self.page.expect_download() as file:
                 self.page.click("button.download-button:has-text('Download')")
             download = file.value
-            download.save_as(f"./tmp/report_cards/{dept}.pdf")
+            download.save_as(f"./tmp/report_cards/{filename}.pdf")
             self.page.wait_for_timeout(2500)
             self.logger.info("Done downloading!")
         except Exception as e:
