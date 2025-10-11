@@ -3,3 +3,5 @@ env/
 tmp/
 
 .env
+
+licahr_email.json
