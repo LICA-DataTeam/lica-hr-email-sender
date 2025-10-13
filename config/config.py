@@ -1,10 +1,18 @@
+from dataclasses import dataclass
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
-SPREADSHEET_ID = os.getenv("EMAIL_MASTERLIST_ID")
-SPREADSHEET_RANGE = "Sheet1!A1:G134"
+@dataclass(frozen=True)
+class Spreadsheet:
+    id: str
+    range: str
+
+class Sheets:
+    EMAIL_MASTERLIST = Spreadsheet(os.getenv("EMAIL_MASTERLIST_ID"), "Sheet1!A1:G134")
+    SC_LOOKER_STUDIO_NAME_LIST = Spreadsheet(os.getenv("SC_LOOKER_STUDIO_NAME_LIST"), "Sheet1!A1:A1539")
+    GRM_LOOKER_STUDIO_NAME_LIST = Spreadsheet(os.getenv("GRM_LOOKER_STUDIO_NAME_LIST"), "Sheet1!A1:A150")
 
 SC_BASE_URL = os.getenv("SC_LOOKER_STUDIO_URL")
 GRM_BASE_URL = os.getenv("GRM_LOOKER_STUDIO_URL")
