@@ -4,13 +4,9 @@ from components import (
     GSheetService,
     fetch_emails
 )
-from config import (
-    SPREADSHEET_RANGE,
-    SPREADSHEET_ID,
-    SC_BASE_URL
-)
+from urllib.parse import unquote, urlparse, parse_qs
+from config import Sheets, SC_BASE_URL
 from collections import defaultdict
-import pyperclip
 import logging
 import json
 
@@ -19,8 +15,6 @@ logging.basicConfig(
     format='%(asctime)s - %(level)s - %(message)s'
 )
 
-# FLOW:
-# START -> Collect emails from GSheet -> LookerStudioURLBuilder & ReportDownloader to generate the employee report card -> Email Notifier Automation
 def group_by_boss(employees: list[dict]) -> dict[str, list[dict]]:
     """
     Groups the SC employees by GRM.
@@ -42,72 +36,75 @@ def group_by_boss(employees: list[dict]) -> dict[str, list[dict]]:
         grouped[emp["grm_email_address"]].append(emp)
     return grouped
 
-if __name__ == "__main__":
-    # @app.get
-    # def route1() -> str - get looker studio url
-    # name: str, year: int, month: int, lang: Literal["en", "es", etc], is_clip: bool
-    # name = "zian rosales"
-    # url = LookerStudioURLBuilder(
-    #     base_url=sc_url,
-    #     year=2024,
-    #     month=9,
-    #     employee_name=name.upper(),
-    #     lang="en",
-    #     is_clip=True
-    # ).get_looker_url()
-    # logging.info("Done building URL!")
-    # logging.info(url)
-
-    # logging.info("Generating employee dashboard...")
-    # downloader = ReportDownloader(
-    #     url=url,
-    #     dept="SC",
-    #     headless=False
-    # )
-    # downloader.run_automation()
-    gsheet = GSheetService(
-        service_account_file="licahr_email.json",
-        spreadsheet_id=SPREADSHEET_ID,
-        spreadsheet_range=SPREADSHEET_RANGE
-    )
-    emails = fetch_emails(gsheet=gsheet)
-    # print(json.dumps(
-    #     emails,
-    #     indent=2,
-    #     ensure_ascii=False
-    # ))
-    grouped = group_by_boss(employees=emails)
-    # print(json.dumps(grouped, indent=2, ensure_ascii=False))
-
+def generate_looker_urls(
+    base_url: str,
+    emails: dict[str, list[dict]],
+    year: int,
+    month: int
+):
+    logging.info("Generating Looker Studio URLs...")
     looker_urls = []
-    for grm_email, employees in grouped.items():
-        attachments = []
-        for emp in employees[:1]:
+    for _, employees in emails.items():
+        for emp in employees:
             url = LookerStudioURLBuilder(
-                base_url=SC_BASE_URL,
-                year=2025,
-                month=9,
-                employee_name=f"{emp['sc_lastname']} {emp['sc_firstname']}".upper(),
+                base_url=base_url,
+                year=year,
+                month=month,
+                employee_name=f"{emp['sc_firstname']} {emp['sc_lastname']}".upper(),
                 lang="en"
             ).get_looker_url()
             looker_urls.append(url)
+    return looker_urls
 
-    # Must have unified SC & GRM naming convention (Dashboard and Masterlist)
-    print(json.dumps(
-        looker_urls,
-        indent=4,
-        ensure_ascii=False
-    ))
-    pyperclip.copy(looker_urls[1])
+def parse_employee_names(urls: list[str]) -> list:
+    names = []
+    for url in urls:
+        parsed = parse_qs(urlparse(url).query)
+        params_encoded = parsed["params"][0]
+        params_decoded = unquote(params_encoded)
+        params_dict = json.loads(params_decoded)
+        names.append(params_dict["ds0.sc_employee_name"])
+    return names
 
-    # sc_name = "analie azanon"
-    # url = LookerStudioURLBuilder(
-    #     base_url=SC_BASE_URL,
-    #     year=2024,
-    #     month=1,
-    #     employee_name=sc_name.upper(),
-    #     lang="en"
-    # ).get_looker_url()
+def generate_employee_report_card(
+    url: str,
+    dept: str,
+    employee_name: str,
+    headless: bool = False
+):
+    logging.info(f"Generating report card for {employee_name}")
+    downloader = ReportDownloader(
+        url=url,
+        dept=dept,
+        employee_name=employee_name,
+        headless=headless
+    )
+    logging.info("Done!")
+    downloader.run_automation()
 
-    # import pyperclip
-    # pyperclip.copy(url)
+def generate_employee_links(
+    base_url: str,
+    year: int,
+    month: int
+):
+    gsheet = GSheetService(
+        service_account_file="licahr_email.json",
+        spreadsheet_id=Sheets.EMAIL_MASTERLIST.id,
+        spreadsheet_range=Sheets.EMAIL_MASTERLIST.range
+    )
+    emails = fetch_emails(gsheet=gsheet)
+    grouped = group_by_boss(employees=emails)
+    looker_urls = generate_looker_urls(base_url, grouped, year, month)
+    employees = parse_employee_names(looker_urls)
+    return {employee: url for employee, url in zip(employees, looker_urls)}
+
+if __name__ == "__main__":
+    links = generate_employee_links(base_url=SC_BASE_URL, year=2025, month=9)
+    name = list(links.keys())[0]
+    url = list(links.values())[0]
+    generate_employee_report_card(
+        url=url,
+        dept="SC_TEST",
+        employee_name=name,
+        headless=False
+    )
