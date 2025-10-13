@@ -15,19 +15,24 @@ class ReportDownloader:
     def __init__(
         self,
         url: str = None,
-        dept: Literal["SC", "GRM"] = None,
+        dept: Literal["SC", "SC_TEST", "GRM"] = None,
+        employee_name: str = None,
         headless: bool = False,
         slow_mo: int = 100
     ):
         self.logger = logging.getLogger(__name__)
         self.url = url
         self.dept = dept
+        self.employee_name = employee_name
         self.headless = headless
         self.slow_mo = slow_mo
         
         self.sync_playwright_instance = None
         self.browser: Browser = None
         self.page: Page = None
+
+    def _get_employee_last_name(self):
+        return self.employee_name.split()[-1]
 
     def _get_sync_playwright_instance(self):
         try:
@@ -91,7 +96,7 @@ class ReportDownloader:
         try:
             self._launch_browser(p)
             self._navigate_to_page()
-            self._download_report_card(dept=self.dept)
+            self._download_report_card(dept=self.dept, filename=f"{self.dept}_{self._get_employee_last_name()}")
         finally:
             self._close_browser()
             if self.sync_playwright_instance:
