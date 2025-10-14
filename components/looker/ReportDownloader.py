@@ -31,9 +31,6 @@ class ReportDownloader:
         self.browser: Browser = None
         self.page: Page = None
 
-    def _get_employee_last_name(self):
-        return self.employee_name.split()[-1]
-
     def _get_sync_playwright_instance(self):
         try:
             self.sync_playwright_instance = sync_playwright().start()
@@ -96,7 +93,7 @@ class ReportDownloader:
         try:
             self._launch_browser(p)
             self._navigate_to_page()
-            self._download_report_card(dept=self.dept, filename=f"{self.dept}_{self._get_employee_last_name()}")
+            self._download_report_card(dept=self.dept, filename=f"{self.dept}_{self.employee_name}")
         finally:
             self._close_browser()
             if self.sync_playwright_instance:
