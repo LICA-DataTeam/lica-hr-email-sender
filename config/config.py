@@ -16,3 +16,14 @@ class Sheets:
 
 SC_BASE_URL = os.getenv("SC_LOOKER_STUDIO_URL")
 GRM_BASE_URL = os.getenv("GRM_LOOKER_STUDIO_URL")
+
+SERVICE_FILE = os.getenv("LICA_HR_SERVICE_ACCOUNT_FILE")
+OAUTH_FILE = os.getenv("LICA_HR_OAUTH_FILE")
+GMAIL_TOKEN_FILE = os.getenv("GMAIL_TOKEN_FILE")
+
+TEST_EMAIL1 = os.getenv("TEST_EMAIL1")
+TEST_EMAIL2 = os.getenv("TEST_EMAIL2")
+SUBJECT = "Test"
+BODY = """
+Hello, World!
+"""
