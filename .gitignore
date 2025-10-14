@@ -5,3 +5,5 @@ tmp/
 .env
 
 licahr_email.json
+licahr_email_oauth.json
+gmail_token_licahr.json
