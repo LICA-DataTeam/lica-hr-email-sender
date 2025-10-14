@@ -1,9 +1,9 @@
-from components.utils.GSheetService import (
-    GSheetService,
-    fetch_emails
-)
+from components.utils.GoogleService import GoogleServiceFactory
+from components.utils.GSheetService import GSheetService
+from components.utils.GmailService import GmailService
 
 __all__ = [
+    "GoogleServiceFactory",
     "GSheetService",
-    "fetch_emails"
+    "GmailService"
 ]
