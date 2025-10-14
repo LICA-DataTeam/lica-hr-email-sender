@@ -1,11 +1,11 @@
 from app.common import (
     JSONResponse,
     APIRouter,
-    status,
-    Query
+    status
 )
 from components import GoogleServiceFactory
 from config import (
+    GMAIL_TOKEN_FILE, OAUTH_FILE,
     TEST_EMAIL1, TEST_EMAIL2,
     SUBJECT, BODY
 )
@@ -16,8 +16,8 @@ router = APIRouter()
 def send_automated_email():
     try:
         config = {
-            "gmail_token_file": "gmail_token_licahr.json",
-            "oauth_file": "licahr_email_oauth.json"
+            "gmail_token_file": GMAIL_TOKEN_FILE,
+            "oauth_file": OAUTH_FILE
         }
         GoogleServiceFactory.create("gmail", config).send_email(
             recipient_email=[TEST_EMAIL1, TEST_EMAIL2],
