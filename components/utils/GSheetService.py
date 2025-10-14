@@ -24,14 +24,27 @@ class GSheetService:
             self.service_account_file, scopes=self.SCOPES
         )
 
-def fetch_emails(gsheet: GSheetService) -> list[dict]:
-    gsheet.logger.info("Fetching emails...")
-    sheet = gsheet.service.spreadsheets()
-    result = sheet.values().get(
-        spreadsheetId=gsheet.spreadsheet_id,
-        range=gsheet.spreadsheet_range
-    ).execute()
-    values = result.get("values", [])
-    col = values[0]
-    rows = values[1:]
-    return [dict(zip(col, row)) for row in rows]
+    def fetch_emails(self, filter_by: dict = None) -> list[dict]:
+        self.logger.info("Fetching emails...")
+        sheet = self.service.spreadsheets()
+        result = sheet.values().get(
+            spreadsheetId=self.spreadsheet_id,
+            range=self.spreadsheet_range
+        ).execute()
+        values = result.get("values", [])
+        col = values[0]
+        rows = values[1:]
+        employees = [dict(zip(col, row)) for row in rows]
+
+        if filter_by:
+            filtered = []
+            for employee in employees:
+                match = all(
+                    employee.get(key) == value
+                    for key, value in filter_by.items()
+                )
+                if match:
+                    filtered.append(employee)
+            return filtered
+
+        return employees
