@@ -12,3 +12,9 @@
 
         2. Generate the report card (Download PDF)
 4. Run email automation (`GmailUtil`)
+
+---
+
+### TO DO
+
+- [ ] Dynamic date parameters in `app/routes/app.py`
