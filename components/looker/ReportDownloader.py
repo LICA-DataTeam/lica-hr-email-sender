@@ -84,7 +84,7 @@ class ReportDownloader:
             with self.page.expect_download() as file:
                 self.page.click("button.download-button:has-text('Download')")
             download = file.value
-            download.save_as(f"./tmp/report_cards/{filename}.pdf")
+            download.save_as(f"./tmp/report_cards/{dept}/{filename}.pdf")
             self.page.wait_for_timeout(2500)
             self.logger.info("Done downloading!")
         except Exception as e:
