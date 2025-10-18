@@ -7,6 +7,8 @@ from urllib.parse import unquote, urlparse, parse_qs
 from collections import defaultdict
 from config import (
     SERVICE_FILE,
+    GRM_BASE_URL,
+    SC_BASE_URL,
     Sheets
 )
 import logging
@@ -48,11 +50,15 @@ def generate_looker_urls(
     looker_urls = []
     for _, employees in emails.items():
         for emp in employees:
+            if base_url == SC_BASE_URL:
+                emp_name = f"{emp['sc_firstname']} {emp['sc_lastname']}"
+            elif base_url == GRM_BASE_URL:
+                emp_name = f"{emp['grm_name']}" # do some processing
             url = LookerStudioURLBuilder(
                 base_url=base_url,
                 year=year,
                 month=month,
-                employee_name=f"{emp['sc_firstname']} {emp['sc_lastname']}".upper(),
+                employee_name=emp_name.upper(),
                 lang="en"
             ).get_looker_url()
             looker_urls.append(url)
@@ -87,7 +93,8 @@ def generate_employee_report_card(
 def generate_employee_links(
     base_url: str,
     year: int,
-    month: int
+    month: int,
+    grm_email: str = None
 ):
     config = {
         "service_account_file": SERVICE_FILE,
@@ -96,6 +103,23 @@ def generate_employee_links(
     }
     gsheet = GoogleServiceFactory.create("gsheet", config)
     emails = gsheet.fetch_emails()
+
+    if grm_email:
+        employee_under_grm = [emp for emp in emails if emp["grm_email_address"].lower() == grm_email.lower()]
+        if not employee_under_grm:
+            raise ValueError(f"No employees found for: {grm_email}")
+
+        grm_full_name = employee_under_grm[0]["grm_name"].upper()
+        logging.info(f"GRM FULL NAME: {grm_full_name}")
+
+        employee_under_grm.append({
+            "sc_firstname": grm_full_name.split()[0],
+            "sc_lastname": " ".join(grm_full_name.split()[1:]),
+            "grm_email_address": grm_email,
+            "grm_name": grm_full_name
+        })
+        emails = employee_under_grm
+
     grouped = group_by_boss(employees=emails)
     looker_urls = generate_looker_urls(base_url, grouped, year, month)
     employees = parse_employee_names(looker_urls)
@@ -108,13 +132,15 @@ def run(
     month: int,
     employee_keys: list[str] = None,
     limit: int = None,
-    headless: bool = False
+    headless: bool = False,
+    grm_email: str = None
 ):
     try:
         links = generate_employee_links(
             base_url=base_url,
             year=year,
-            month=month
+            month=month,
+            grm_email=grm_email
         )
 
         if employee_keys:
