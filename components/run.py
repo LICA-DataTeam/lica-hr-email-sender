@@ -40,6 +40,25 @@ def group_by_boss(employees: list[dict]) -> dict[str, list[dict]]:
         grouped[emp["grm_email_address"]].append(emp)
     return grouped
 
+def group_by_branch(employees: list[dict]) -> dict[str, list[dict]]:
+    """
+    Groups the employees by branch.
+
+    Returns:
+    
+    ```python
+    {
+        "Shaw": [emp1, emp2, ...],
+        "Batangas": [emp1, emp2, ...],
+        ...
+    }
+    ```
+    """
+    grouped = defaultdict(list)
+    for emp in employees:
+        grouped[emp["branch"]].append(emp)
+    return grouped
+
 def generate_looker_urls(
     base_url: str,
     emails: dict[str, list[dict]],
