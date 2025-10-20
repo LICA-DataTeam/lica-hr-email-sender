@@ -1,11 +1,12 @@
 from app.common import (
     JSONResponse,
     APIRouter,
+    Depends,
     status
 )
-from components import GoogleServiceFactory
+from app.dependencies import get_gmail_service
+from components.utils import GmailService
 from config import (
-    GMAIL_TOKEN_FILE, OAUTH_FILE,
     TEST_EMAIL1, TEST_EMAIL2,
     SUBJECT, BODY
 )
@@ -13,13 +14,9 @@ from config import (
 router = APIRouter()
 
 @router.post("/send-email")
-def send_automated_email():
+def send_automated_email(gmail_service: GmailService = Depends(get_gmail_service)):
     try:
-        config = {
-            "gmail_token_file": GMAIL_TOKEN_FILE,
-            "oauth_file": OAUTH_FILE
-        }
-        GoogleServiceFactory.create("gmail", config).send_email(
+        gmail_service.send_email(
             recipient_email=[TEST_EMAIL1, TEST_EMAIL2],
             subject=SUBJECT,
             body=BODY
