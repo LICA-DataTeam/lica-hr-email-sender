@@ -95,6 +95,7 @@ def parse_employee_names(urls: list[str]) -> list:
 
 def generate_employee_report_card(
     url: str,
+    branch: str,
     dept: str,
     employee_name: str,
     headless: bool = False
@@ -102,6 +103,7 @@ def generate_employee_report_card(
     logging.info(f"Generating report card for {employee_name}")
     downloader = ReportDownloader(
         url=url,
+        branch=branch,
         dept=dept,
         employee_name=employee_name,
         headless=headless
@@ -123,6 +125,12 @@ def generate_employee_links(
     gsheet = GoogleServiceFactory.create("gsheet", config)
     emails = gsheet.fetch_emails()
 
+    branch_lookup = {
+        f"{emp['sc_firstname']} {emp['sc_lastname']}".upper(): emp.get("branch")
+        for emp in emails
+        if emp.get("sc_firstname") and emp.get("sc_lastname")
+    }
+
     if grm_email:
         employee_under_grm = [emp for emp in emails if emp["grm_email_address"].lower() == grm_email.lower()]
         if not employee_under_grm:
@@ -142,7 +150,14 @@ def generate_employee_links(
     grouped = group_by_boss(employees=emails)
     looker_urls = generate_looker_urls(base_url, grouped, year, month)
     employees = parse_employee_names(looker_urls)
-    return {employee: url for employee, url in zip(employees, looker_urls)}
+    # return {employee: url for employee, url in zip(employees, looker_urls)}
+    return {
+        employee: {
+            "url": url,
+            "branch": branch_lookup.get(employee, "Unassigned")
+        }
+        for employee, url in zip(employees, looker_urls)
+    }
 
 def run(
     base_url: str,
@@ -169,9 +184,10 @@ def run(
             logging.info(f"Limit set to: {limit}")
             links = dict(list(links.items())[:limit])
 
-        for name, url in links.items():
+        for name, data in links.items():
             generate_employee_report_card(
-                url=url,
+                url=data["url"],
+                branch=data["branch"],
                 dept=dept,
                 employee_name=name,
                 headless=headless

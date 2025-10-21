@@ -15,6 +15,7 @@ class ReportDownloader:
     def __init__(
         self,
         url: str = None,
+        branch: str = None,
         dept: Literal["SC", "SC_TEST", "GRM"] = None,
         employee_name: str = None,
         headless: bool = False,
@@ -22,6 +23,7 @@ class ReportDownloader:
     ):
         self.logger = logging.getLogger(__name__)
         self.url = url
+        self.branch = branch
         self.dept = dept
         self.employee_name = employee_name
         self.headless = headless
@@ -81,7 +83,7 @@ class ReportDownloader:
             with self.page.expect_download() as file:
                 self.page.click("button.download-button:has-text('Download')")
             download = file.value
-            download.save_as(f"./tmp/report_cards/{dept}/{filename}.pdf")
+            download.save_as(f"./tmp/report_cards/{dept}/{self.branch}/{filename}.pdf")
             self.page.wait_for_timeout(2500)
             self.logger.info("Done downloading!")
         except Exception as e:
