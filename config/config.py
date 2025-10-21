@@ -10,9 +10,7 @@ class Spreadsheet:
     range: str
 
 class Sheets:
-    EMAIL_MASTERLIST = Spreadsheet(os.getenv("EMAIL_MASTERLIST_ID"), "Sheet1!A1:G134")
-    SC_LOOKER_STUDIO_NAME_LIST = Spreadsheet(os.getenv("SC_LOOKER_STUDIO_NAME_LIST"), "Sheet1!A1:A1539")
-    GRM_LOOKER_STUDIO_NAME_LIST = Spreadsheet(os.getenv("GRM_LOOKER_STUDIO_NAME_LIST"), "Sheet1!A1:A150")
+    EMAIL_MASTERLIST = Spreadsheet(os.getenv("EMAIL_MASTERLIST_ID"), "Sheet1!A1:G136")
 
 SC_BASE_URL = os.getenv("SC_LOOKER_STUDIO_URL")
 GRM_BASE_URL = os.getenv("GRM_LOOKER_STUDIO_URL")
@@ -25,5 +23,9 @@ TEST_EMAIL1 = os.getenv("TEST_EMAIL1")
 TEST_EMAIL2 = os.getenv("TEST_EMAIL2")
 SUBJECT = "Test"
 BODY = """
-Hello, World!
+Hello {last_name}, {first_name},
+
+Your latest report is ready.
+
+Branch: {branch}
 """
