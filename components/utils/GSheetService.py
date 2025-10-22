@@ -29,7 +29,7 @@ class GSheetService:
             return service_account.Credentials.from_service_account_file(
                 self.service_account_file, scopes=self.SCOPES
             )
-        elif isinstance(self.service_account_file, dict) or isinstance(self.service_account_file, str):
+        elif isinstance(self.service_account_file, dict):
             return service_account.Credentials.from_service_account_info(
                 self.service_account_file, scopes=self.SCOPES
             )
