@@ -20,9 +20,21 @@ class GSheetService:
         self.spreadsheet_range = spreadsheet_range
 
     def _authenticate(self) -> Credentials:
-        return service_account.Credentials.from_service_account_file(
-            self.service_account_file, scopes=self.SCOPES
-        )
+        """
+        Authenticates using the service account information.
+
+        Excpects type `str` or `dict`, e.g., `"service_account.json"`, or `{"type": "service_account", ...}`
+        """
+        if isinstance(self.service_account_file, str) and self.service_account_file.endswith(".json"):
+            return service_account.Credentials.from_service_account_file(
+                self.service_account_file, scopes=self.SCOPES
+            )
+        elif isinstance(self.service_account_file, dict) or isinstance(self.service_account_file, str):
+            return service_account.Credentials.from_service_account_info(
+                self.service_account_file, scopes=self.SCOPES
+            )
+        else:
+            raise ValueError("Invalid service account information.")
 
     def fetch_emails(self, filter_by: dict = None) -> list[dict]:
         self.logger.info("Fetching emails...")
