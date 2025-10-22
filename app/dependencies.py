@@ -22,7 +22,7 @@ def _gsheet_service_factory() -> GSheetService:
         "spreadsheet_id": Sheets.EMAIL_MASTERLIST.id,
         "spreadsheet_range": Sheets.EMAIL_MASTERLIST.range
     }
-    return cast(GSheetService, GoogleServiceFactory.create("gsheet"), config)
+    return cast(GSheetService, GoogleServiceFactory.create("gsheet", config))
 
 def get_gmail_service() -> GmailService:
     return _gmail_service_factory()

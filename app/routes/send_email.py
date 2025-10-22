@@ -1,6 +1,6 @@
-from app.dependencies import get_gmail_service
+from app.dependencies import get_gmail_service, get_gsheet_service
+from components.utils import GmailService, GSheetService
 from components import GoogleServiceFactory
-from components.utils import GmailService
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Union
 from enum import Enum
@@ -54,18 +54,12 @@ def _split_name(full_name: str) -> tuple[str, str]:
         return "", ""
     return parts[0], " ".join(parts[1:])
 
-def _build_recipient_list(branch: Branch, recipient_type: RecipientType) -> list[str]:
+def _build_recipient_list(branch: Branch, recipient_type: RecipientType, gsheet_service: GSheetService) -> list[str]:
     logging.info("Building recipient list for branch=%s, target=%s", branch.value, recipient_type.value)
     
-    config = {
-        "service_account_file": json.loads(os.environ["LICA_HR_SERVICE_INFO"]),
-        "spreadsheet_id": Sheets.EMAIL_MASTERLIST.id,
-        "spreadsheet_range": Sheets.EMAIL_MASTERLIST.range
-    }
-    gsheet = GoogleServiceFactory.create("gsheet", config)
     branch_value = branch.value.upper()
     employees = [
-        emp for emp in gsheet.fetch_emails()
+        emp for emp in gsheet_service.fetch_emails()
         if emp.get("branch", "").strip().upper() == branch_value
     ]
     recipients: dict[str, dict] = {}
@@ -112,12 +106,13 @@ def _render_template(template: str, employee: dict, branch: Branch) -> str:
 @router.post("/send-email")
 def send_automated_email(
     payload: BranchEmailRequest,
-    gmail_service: GmailService = Depends(get_gmail_service)
+    gmail_service: GmailService = Depends(get_gmail_service),
+    gsheet_service: GSheetService = Depends(get_gsheet_service)
 ):
     """
     Sends an email to employees under specified branch.
     """
-    recipients = _build_recipient_list(payload.branch, payload.recipient_type)
+    recipients = _build_recipient_list(payload.branch, payload.recipient_type, gsheet_service)
     if not recipients:
         raise HTTPException(
             status_code=404,
