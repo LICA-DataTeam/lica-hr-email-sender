@@ -5,6 +5,8 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, Union
 from enum import Enum
 import logging
+import json
+import os
 from config import (
     SUBJECT, BODY,
     SERVICE_FILE,
@@ -56,7 +58,7 @@ def _build_recipient_list(branch: Branch, recipient_type: RecipientType) -> list
     logging.info("Building recipient list for branch=%s, target=%s", branch.value, recipient_type.value)
     
     config = {
-        "service_account_file": SERVICE_FILE,
+        "service_account_file": json.loads(os.environ["LICA_HR_SERVICE_INFO"]),
         "spreadsheet_id": Sheets.EMAIL_MASTERLIST.id,
         "spreadsheet_range": Sheets.EMAIL_MASTERLIST.range
     }

@@ -13,6 +13,7 @@ from config import (
 )
 import logging
 import json
+import os
 
 logging.basicConfig(
     level=logging.INFO,
@@ -118,7 +119,7 @@ def generate_employee_links(
     grm_email: str = None
 ):
     config = {
-        "service_account_file": SERVICE_FILE,
+        "service_account_file": json.loads(os.environ["LICA_HR_SERVICE_INFO"]),
         "spreadsheet_id": Sheets.EMAIL_MASTERLIST.id,
         "spreadsheet_range": Sheets.EMAIL_MASTERLIST.range
     }
