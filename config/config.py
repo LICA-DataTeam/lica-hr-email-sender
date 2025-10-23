@@ -21,13 +21,3 @@ GMAIL_TOKEN_FILE = os.getenv("GMAIL_TOKEN_FILE")
 
 TEST_EMAIL1 = os.getenv("TEST_EMAIL1")
 TEST_EMAIL2 = os.getenv("TEST_EMAIL2")
-SUBJECT = "Test"
-BODY = """
-Hello {last_name}, {first_name},
-
-Your latest report is ready.
-
-Link to your report card: {url}
-
-Branch: {branch}
-"""

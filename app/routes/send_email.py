@@ -157,7 +157,7 @@ def _render_template(template: str, employee: dict, branch: Branch, url: str) ->
 #             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
 #         )
 
-@router.post("/send-email-v2")
+@router.post("/send-sc-email")
 def get_employee_url(
     payload: BranchEmailRequest,
     gmail_service: GmailService = Depends(get_gmail_service),
@@ -232,3 +232,12 @@ def get_employee_url(
             },
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+@router.post("/send-grm-email")
+def send_grm():
+    return JSONResponse(
+        content={
+            "status": "success",
+            "content": "Nothing yet."
+        }
+    )
