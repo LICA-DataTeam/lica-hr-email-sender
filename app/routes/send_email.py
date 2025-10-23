@@ -8,6 +8,7 @@ import logging
 import json
 import os
 from config import (
+    GRM_BASE_URL, SC_BASE_URL,
     SUBJECT, BODY,
     SERVICE_FILE,
     Sheets
@@ -17,8 +18,11 @@ from app.common import (
     JSONResponse,
     APIRouter,
     Depends,
+    Query,
     status
 )
+
+from components.run import generate_employee_links
 
 logging.basicConfig(
     level=logging.INFO,
@@ -90,11 +94,12 @@ def _build_recipient_list(branch: Branch, recipient_type: RecipientType, gsheet_
             }
     return list(recipients.values())
 
-def _render_template(template: str, employee: dict, branch: Branch) -> str:
+def _render_template(template: str, employee: dict, branch: Branch, url: str) -> str:
     context = {
         "first_name": employee["first_name"],
         "last_name": employee["last_name"],
         "full_name": employee["full_name"],
+        "url": url,
         "branch": branch.value
     }
     try:
@@ -103,15 +108,65 @@ def _render_template(template: str, employee: dict, branch: Branch) -> str:
         logging.warning("Missing placeholder %s in template; returning original text", e)
         return template
 
-@router.post("/send-email")
-def send_automated_email(
+# @router.post("/send-email")
+# def send_automated_email(
+#     payload: BranchEmailRequest,
+#     gmail_service: GmailService = Depends(get_gmail_service),
+#     gsheet_service: GSheetService = Depends(get_gsheet_service)
+# ):
+#     """
+#     Sends an email to employees under specified branch.
+#     """
+#     recipients = _build_recipient_list(payload.branch, payload.recipient_type, gsheet_service)
+#     if not recipients:
+#         raise HTTPException(
+#             status_code=404,
+#             detail=f"No employees found for branch '{payload.branch}'."
+#         )
+    
+#     sent = []
+#     skipped = []
+#     subject = payload.subject or SUBJECT
+#     body = payload.body or BODY
+#     try:
+#         for recipient in recipients:
+#             email = recipient["email"]
+#             if not email:
+#                 skipped.append(recipient["data"])
+#                 continue
+#             body_template = _render_template(body, recipient, payload.branch)
+#             gmail_service.send_email(email, subject, body_template)
+#             sent.append(email)
+#         return JSONResponse(
+#             content={
+#                 "status": "success",
+#                 "branch": payload.branch.value,
+#                 "recipient_list": recipients,
+#                 "recipient_type": payload.recipient_type.value,
+#                 "sent": sent,
+#                 "skipped": [rec["full_name"] for rec in recipients if rec["email"] is None]
+#             },
+#             status_code=status.HTTP_200_OK
+#         )
+#     except Exception as e:
+#         return JSONResponse(
+#             content={
+#                 "status": "error",
+#                 "message": str(e)
+#             },
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+#         )
+
+@router.post("/send-email-v2")
+def get_employee_url(
     payload: BranchEmailRequest,
     gmail_service: GmailService = Depends(get_gmail_service),
-    gsheet_service: GSheetService = Depends(get_gsheet_service)
+    gsheet_service: GSheetService = Depends(get_gsheet_service),
+    year: int = Query(..., description="Assessment year for the employee."),
+    month: int = Query(..., description="Assessment month for the employee."),
+    emp_key: list[str] = Query(None, description="Employee key you want to look up."),
+    grm_email: str = Query(None, description="GRM you want to look up.")
 ):
-    """
-    Sends an email to employees under specified branch.
-    """
     recipients = _build_recipient_list(payload.branch, payload.recipient_type, gsheet_service)
     if not recipients:
         raise HTTPException(
@@ -124,26 +179,52 @@ def send_automated_email(
     subject = payload.subject or SUBJECT
     body = payload.body or BODY
     try:
+        base_url = GRM_BASE_URL if grm_email else SC_BASE_URL
+        logging.info("Collecting employee links...")
+        links = generate_employee_links(
+            base_url=base_url,
+            year=year,
+            month=month,
+            grm_email=grm_email if grm_email else None
+        )
+
+        if emp_key:
+            links = {name: url for name, url in links.items() if any(key in name for key in emp_key)}
+
+        url_list = []
+        name_list = []
+        branch_list = []
+
+        for names, data in links.items():
+            name_list.append(names)
+            url_list.append(data['url'])
+            branch_list.append(data['branch'])
+
+        first_name, last_name = name_list[0].split()[0], name_list[0].split()[-1]
+
+        logging.info("Collecting recipients...")
         for recipient in recipients:
             email = recipient["email"]
             if not email:
                 skipped.append(recipient["data"])
                 continue
-            body_template = _render_template(body, recipient, payload.branch)
-            gmail_service.send_email(email, subject, body_template)
+            body_template = _render_template(body, recipient, payload.branch, url_list[0])
+            # gmail_service.send_email(email, subject, body_template)
+            print(body_template)
             sent.append(email)
         return JSONResponse(
             content={
                 "status": "success",
-                "branch": payload.branch.value,
-                "recipient_list": recipients,
-                "recipient_type": payload.recipient_type.value,
-                "sent": sent,
-                "skipped": [rec["full_name"] for rec in recipients if rec["email"] is None]
-            },
-            status_code=status.HTTP_200_OK
+                "content": {
+                    "last_name": last_name,
+                    "first_name": first_name,
+                    "url": url_list[0],
+                    "branch": branch_list[0]
+                }
+            }
         )
     except Exception as e:
+        logging.error(f"Exception occurred: {e}")
         return JSONResponse(
             content={
                 "status": "error",

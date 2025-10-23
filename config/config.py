@@ -27,5 +27,7 @@ Hello {last_name}, {first_name},
 
 Your latest report is ready.
 
+Link to your report card: {url}
+
 Branch: {branch}
 """
