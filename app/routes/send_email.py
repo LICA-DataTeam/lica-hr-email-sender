@@ -3,11 +3,9 @@ from config.email_contents import generate_email, EMAIL_TEMPLATES
 from components.utils import GmailService, GSheetService
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Union
+from config import SC_BASE_URL
 from enum import Enum
 import logging
-from config import (
-    GRM_BASE_URL, SC_BASE_URL,
-)
 from app.common import (
     HTTPException,
     JSONResponse,
@@ -112,6 +110,31 @@ def _build_recipient_list(branch: Branch, recipient_type: RecipientType, gsheet_
             }
     return list(recipients.values())
 
+def _format_link_block(entries: list[dict]) -> str:
+    return "\n".join(
+        f"    {idx}. {item['name']} → {item['url']}"
+        for idx, item in enumerate(entries, start=1)
+    )
+
+def _render_grm_email(
+    employee: dict,
+    managed_links: list[dict],
+    employee_month: int,
+    employee_year: int,
+    recipient_type: RecipientType
+):
+    context = {
+        "first_name": employee["first_name"],
+        "last_name": employee["last_name"],
+        "email_address": employee["email"],
+        "branch": employee["data"]["branch"],
+        "month": employee_month,
+        "year": employee_year,
+        "department": recipient_type,
+        "managed_links": _format_link_block(managed_links)
+    }
+    return generate_email(context, employee_month, employee_year, url="")
+
 def _render_template(
     employee: dict,
     employee_month: int,
@@ -156,8 +179,7 @@ def send_sc_url(
     gsheet_service: GSheetService = Depends(get_gsheet_service),
     year: int = Query(..., description="Assessment year for the employee."),
     month: int = Query(..., description="Assessment month for the employee."),
-    emp_key: list[str] = Query(None, description="Employee key you want to look up."),
-    grm_email: str = Query(None, description="GRM you want to look up.")
+    emp_key: list[str] = Query(None, description="Employee key you want to look up.")
 ):
     recipients = _build_recipient_list(payload.branch, payload.recipient_type, gsheet_service)
     if not recipients:
@@ -170,13 +192,11 @@ def send_sc_url(
     skipped = []
 
     try:
-        base_url = GRM_BASE_URL if grm_email else SC_BASE_URL
         logging.info("Collecting employee links...")
         links = generate_employee_links(
-            base_url=base_url,
+            base_url=SC_BASE_URL,
             year=year,
-            month=month,
-            grm_email=grm_email if grm_email else None
+            month=month
         )
 
         if emp_key:
@@ -221,7 +241,8 @@ def send_sc_url(
                 url=link_info["url"]
             )
             logging.info("Sending email to recipients...")
-            gmail_service.send_email(email, f"RE: {payload.branch.value} Monthly Performance", body_template)
+            # gmail_service.send_email(email, f"RE: {payload.branch.value} Monthly Performance", body_template)
+            print(body_template)
             sent.append(email)
         return JSONResponse(
             content={
@@ -242,11 +263,69 @@ def send_sc_url(
         )
 
 @router.post("/send-grm-email")
-def send_grm_url():
-    return JSONResponse(
-        content={
-            "status": "success",
-            "content": "Nothing yet."
-        },
-        status_code=status.HTTP_200_OK
+def send_grm_url(
+    payload: BranchEmailRequest,
+    gmail_service: GmailService = Depends(get_gmail_service),
+    gsheet_service: GSheetService = Depends(get_gsheet_service),
+    year: int = Query(..., description="Assessment year for the employee."),
+    month: int = Query(..., description="Assessment month for the employee."),
+    grm_email: str = Query(..., description="GRM you want to look up.")
+):
+    recipients = _build_recipient_list(payload.branch, payload.recipient_type, gsheet_service)
+    grm_email_lower = grm_email.lower()
+    grm_recipient = next(
+        (r for r in recipients if r["email"].lower() == grm_email_lower),
+        None
     )
+
+    if not grm_recipient:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No employees found for branch '{payload.branch}'"
+        )
+    try:
+        logging.info("Collecting employee links...")
+        links = generate_employee_links(
+            base_url=SC_BASE_URL,
+            year=year,
+            month=month,
+            grm_email=grm_email
+        )
+        managed_links = [
+            {"name": name.title(), "url": info["url"]}
+            for name, info in links.items()
+            if name.upper() != grm_recipient["data"]["grm_name"].upper()
+        ]
+        
+        body_template = _render_grm_email(
+            employee=grm_recipient,
+            managed_links=managed_links,
+            employee_month=month,
+            employee_year=year,
+            recipient_type=payload.recipient_type.value
+        )
+        logging.info("Sending email to recipients...")
+        print(body_template)
+        # gmail_service.send_email(
+        #     recipient_email=grm_email,
+        #     subject=f"RE: {payload.recipient_type} {payload.branch} Monthly Performance Report",
+        #     body=body_template
+        # )
+        return JSONResponse(
+            content={
+                "status": "success",
+                "content": "Nothing yet."
+            },
+            status_code=status.HTTP_200_OK
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        logging.error(f"Exception occurred: {e}")
+        return JSONResponse(
+            content={
+                "status": "error",
+                "content": "Error sending email."
+            },
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

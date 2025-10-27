@@ -53,6 +53,7 @@ class User(BaseModel):
     year: int
     department: Literal["SC", "GRM"]
     url: Optional[str] = None
+    managed_links: Optional[str] = None
 
 def _format_month(month_value: Optional[Union[int, str]]) -> str:
     if month_value is None:
@@ -76,6 +77,7 @@ def generate_email(user: Union[User, dict], employee_month: int, employee_year: 
     month_value = employee_month if employee_month else user_model.month
     year_value = employee_year if employee_year else user_model.year
     url_value = url if url else user_model.url
+    managed_links = user_model.managed_links if user_model.department == "GRM" else None
 
     return template.format(
         first_name=user_model.first_name,
@@ -83,5 +85,6 @@ def generate_email(user: Union[User, dict], employee_month: int, employee_year: 
         email_address=user_model.email_address,
         month=_format_month(month_value),
         year=year_value,
-        url=url_value
+        url=url_value,
+        managed_links=managed_links
     )
