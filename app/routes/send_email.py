@@ -175,8 +175,8 @@ def get_employee_url(
     
     sent = []
     skipped = []
-    subject = payload.subject or SUBJECT
-    body = payload.body or BODY
+    subject = payload.subject
+    body = payload.body
     try:
         base_url = GRM_BASE_URL if grm_email else SC_BASE_URL
         logging.info("Collecting employee links...")
