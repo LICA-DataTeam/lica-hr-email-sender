@@ -221,7 +221,7 @@ def send_sc_url(
                 url=link_info["url"]
             )
             logging.info("Sending email to recipients...")
-            gmail_service.send_email(email, f"RE: {payload.branch} Monthly Performance", body_template)
+            gmail_service.send_email(email, f"RE: {payload.branch.value} Monthly Performance", body_template)
             sent.append(email)
         return JSONResponse(
             content={
