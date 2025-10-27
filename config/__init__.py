@@ -6,8 +6,6 @@ from config.config import (
     TEST_EMAIL1,
     TEST_EMAIL2,
     OAUTH_FILE,
-    SUBJECT,
-    BODY,
     Sheets
 )
 

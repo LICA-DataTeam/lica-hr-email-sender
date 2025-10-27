@@ -9,7 +9,6 @@ import json
 import os
 from config import (
     GRM_BASE_URL, SC_BASE_URL,
-    SUBJECT, BODY,
     SERVICE_FILE,
     Sheets
 )
