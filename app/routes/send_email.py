@@ -1,16 +1,12 @@
 from app.dependencies import get_gmail_service, get_gsheet_service
+from config.email_contents import generate_email, EMAIL_TEMPLATES
 from components.utils import GmailService, GSheetService
-from components import GoogleServiceFactory
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Union
 from enum import Enum
 import logging
-import json
-import os
 from config import (
     GRM_BASE_URL, SC_BASE_URL,
-    SERVICE_FILE,
-    Sheets
 )
 from app.common import (
     HTTPException,
@@ -57,6 +53,29 @@ def _split_name(full_name: str) -> tuple[str, str]:
         return "", ""
     return parts[0], " ".join(parts[1:])
 
+def _normalize_name(name: Optional[str]) -> str:
+    if not name:
+        return ""
+    return " ".join(name.split()).strip().lower()
+
+def _recipient_key_candidates(recipient: dict) -> list[str]:
+    data = recipient.get("data", {})
+    raw_candidates = [
+        recipient.get("full_name"),
+        f"{recipient.get('first_name', '')} {recipient.get('last_name', '')}",
+        f"{data.get('sc_firstname', '')} {data.get('sc_lastname', '')}",
+        data.get("grm_name"),
+    ]
+    candidates: list[str] = []
+    seen: set[str] = set()
+
+    for value in raw_candidates:
+        normalized = _normalize_name(value)
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            candidates.append(normalized)
+    return candidates
+
 def _build_recipient_list(branch: Branch, recipient_type: RecipientType, gsheet_service: GSheetService) -> list[str]:
     logging.info("Building recipient list for branch=%s, target=%s", branch.value, recipient_type.value)
     
@@ -93,71 +112,45 @@ def _build_recipient_list(branch: Branch, recipient_type: RecipientType, gsheet_
             }
     return list(recipients.values())
 
-def _render_template(template: str, employee: dict, branch: Branch, url: str) -> str:
+def _render_template(
+    employee: dict,
+    employee_month: int,
+    employee_year: int,
+    recipient_type: RecipientType,
+    url: str,
+) -> str:
     context = {
         "first_name": employee["first_name"],
         "last_name": employee["last_name"],
-        "full_name": employee["full_name"],
+        "email_address": employee["email"],
         "url": url,
-        "branch": branch.value
+        "branch": employee["data"]["branch"],
+        "month": employee_month,
+        "year": employee_year,
+        "department": recipient_type.value,
     }
     try:
-        return template.format(**context)
+        return generate_email(
+            context,
+            employee_month=employee_month,
+            employee_year=employee_year,
+            url=url,
+        )
     except KeyError as e:
         logging.warning("Missing placeholder %s in template; returning original text", e)
-        return template
-
-# @router.post("/send-email")
-# def send_automated_email(
-#     payload: BranchEmailRequest,
-#     gmail_service: GmailService = Depends(get_gmail_service),
-#     gsheet_service: GSheetService = Depends(get_gsheet_service)
-# ):
-#     """
-#     Sends an email to employees under specified branch.
-#     """
-#     recipients = _build_recipient_list(payload.branch, payload.recipient_type, gsheet_service)
-#     if not recipients:
-#         raise HTTPException(
-#             status_code=404,
-#             detail=f"No employees found for branch '{payload.branch}'."
-#         )
-    
-#     sent = []
-#     skipped = []
-#     subject = payload.subject or SUBJECT
-#     body = payload.body or BODY
-#     try:
-#         for recipient in recipients:
-#             email = recipient["email"]
-#             if not email:
-#                 skipped.append(recipient["data"])
-#                 continue
-#             body_template = _render_template(body, recipient, payload.branch)
-#             gmail_service.send_email(email, subject, body_template)
-#             sent.append(email)
-#         return JSONResponse(
-#             content={
-#                 "status": "success",
-#                 "branch": payload.branch.value,
-#                 "recipient_list": recipients,
-#                 "recipient_type": payload.recipient_type.value,
-#                 "sent": sent,
-#                 "skipped": [rec["full_name"] for rec in recipients if rec["email"] is None]
-#             },
-#             status_code=status.HTTP_200_OK
-#         )
-#     except Exception as e:
-#         return JSONResponse(
-#             content={
-#                 "status": "error",
-#                 "message": str(e)
-#             },
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-#         )
+        fallback_context = {
+            "first_name": context.get("first_name", ""),
+            "last_name": context.get("last_name", ""),
+            "email_address": context.get("email_address", ""),
+            "month": context.get("month", ""),
+            "year": context.get("year", ""),
+            "url": context.get("url", ""),
+        }
+        fallback_template = EMAIL_TEMPLATES["Default"]
+        return fallback_template.format(**fallback_context)
 
 @router.post("/send-sc-email")
-def get_employee_url(
+def send_sc_url(
     payload: BranchEmailRequest,
     gmail_service: GmailService = Depends(get_gmail_service),
     gsheet_service: GSheetService = Depends(get_gsheet_service),
@@ -169,14 +162,13 @@ def get_employee_url(
     recipients = _build_recipient_list(payload.branch, payload.recipient_type, gsheet_service)
     if not recipients:
         raise HTTPException(
-            status_code=404,
-            detail=f"No employees found for branch '{payload.branch}'."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No employees found for branch '{payload.branch}'"
         )
-    
+
     sent = []
     skipped = []
-    subject = payload.subject
-    body = payload.body
+
     try:
         base_url = GRM_BASE_URL if grm_email else SC_BASE_URL
         logging.info("Collecting employee links...")
@@ -188,18 +180,20 @@ def get_employee_url(
         )
 
         if emp_key:
-            links = {name: url for name, url in links.items() if any(key in name for key in emp_key)}
+            links = {name: data for name, data in links.items() if any(key.lower() in name.lower() for key in emp_key)}
 
-        url_list = []
-        name_list = []
-        branch_list = []
-
+        link_lookup: dict[str, dict] = {}
         for names, data in links.items():
-            name_list.append(names)
-            url_list.append(data['url'])
-            branch_list.append(data['branch'])
-
-        first_name, last_name = name_list[0].split()[0], name_list[0].split()[-1]
+            normalized = _normalize_name(names)
+            if not normalized:
+                continue
+            if normalized in link_lookup:
+                logging.warning("Duplicate link entry detected for %s; overriding previous value", names)
+            link_lookup[normalized] = {
+                "name": names,
+                "url": data.get("url"),
+                "branch": data.get("branch"),
+            }
 
         logging.info("Collecting recipients...")
         for recipient in recipients:
@@ -207,22 +201,38 @@ def get_employee_url(
             if not email:
                 skipped.append(recipient["data"])
                 continue
-            body_template = _render_template(body, recipient, payload.branch, url_list[0])
-            # gmail_service.send_email(email, subject, body_template)
+
+            link_info = None
+            for candidate in _recipient_key_candidates(recipient):
+                if candidate in link_lookup:
+                    link_info = link_lookup.pop(candidate)
+                    break
+
+            if not link_info or not link_info.get("url"):
+                logging.warning("No link found for recipient %s", recipient.get("full_name") or email)
+                skipped.append(recipient["data"])
+                continue
+
+            body_template = _render_template(
+                employee=recipient,
+                employee_month=month,
+                employee_year=year,
+                recipient_type=payload.recipient_type,
+                url=link_info["url"]
+            )
             print(body_template)
+            # logging.info("Sending email to recipients...")
+            # gmail_service.send_email(email, f"RE: {payload.branch} Monthly Performance", body_template)
             sent.append(email)
         return JSONResponse(
             content={
-                "status": "success",
-                "content": {
-                    "last_name": last_name,
-                    "first_name": first_name,
-                    "url": url_list[0],
-                    "branch": branch_list[0]
-                }
-            }
+                "status": "success"
+            },
+            status_code=status.HTTP_200_OK
         )
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         logging.error(f"Exception occurred: {e}")
         return JSONResponse(
             content={
@@ -233,10 +243,11 @@ def get_employee_url(
         )
 
 @router.post("/send-grm-email")
-def send_grm():
+def send_grm_url():
     return JSONResponse(
         content={
             "status": "success",
             "content": "Nothing yet."
-        }
+        },
+        status_code=status.HTTP_200_OK
     )

@@ -1,9 +1,12 @@
+from typing import Literal, Optional, Union
 from pydantic import BaseModel, EmailStr
-from typing import Literal
+import calendar
 
 EMAIL_TEMPLATES = {
     "GRM": None,
     "SC": """
+    To: {email_address}
+
     Hi {first_name} {last_name}, 
 
     Good day!
@@ -34,14 +37,36 @@ class User(BaseModel):
     month: int
     year: int
     department: Literal["SC", "GRM"]
+    url: Optional[str] = None
 
-def generate_email(user: User, url: str):
+def _format_month(month_value: Optional[Union[int, str]]) -> str:
+    if month_value is None:
+        return ""
+    try:
+        month_int = int(month_value)
+    except (TypeError, ValueError):
+        return str(month_value)
+
+    if 1 <= month_int <= 12:
+        return calendar.month_name[month_int]
+    return str(month_value)
+
+def generate_email(user: Union[User, dict], employee_month: int, employee_year: int, url: str):
+    user_model = User(**user) if isinstance(user, dict) else user
+
     template = EMAIL_TEMPLATES.get(
-        user.department, EMAIL_TEMPLATES["Default"]
-    )
+        user_model.department, EMAIL_TEMPLATES["Default"]
+    ) or EMAIL_TEMPLATES["Default"]
+
+    month_value = employee_month if employee_month else user_model.month
+    year_value = employee_year if employee_year else user_model.year
+    url_value = url if url else user_model.url
 
     return template.format(
-        first_name=user.first_name,
-        last_name=user.last_name,
-        url=url
+        first_name=user_model.first_name,
+        last_name=user_model.last_name,
+        email_address=user_model.email_address,
+        month=_format_month(month_value),
+        year=year_value,
+        url=url_value
     )
