@@ -3,30 +3,45 @@ from pydantic import BaseModel, EmailStr
 import calendar
 
 EMAIL_TEMPLATES = {
-    "GRM": None,
-    "SC": """
-    To: {email_address}
+    "GRM": """
+Hi {first_name} {last_name}, 
 
-    Hi {first_name} {last_name}, 
+Good day!
 
-    Good day!
+As part of the HR Performance Management initiative, we are pleased to share the updated Performance Report Cards of your team under the Vehicle Sales Department for the [Month/Quarter] of [Year].
 
-    As part of our commitment to support your growth and success, we are sharing with you your Performance Report Card for the month of {month} {year}.
+These report cards summarize each team member’s individual performance based on the established KPIs and departmental targets. We encourage you to review these results to assess your team’s overall progress, identify top-performing employees, and address areas that may require additional coaching or support.
 
-    This report provides a summary of your individual performance and achievements during the month, reflecting your progress against the department’s goals and expectations. We encourage you to review the details and take note of both your strengths and the areas where improvements can be made.
+Please find attached the consolidated links for your reference.
 
-    Please find your updated Monthly Performance Report Card attached for your reference.
+SC Report Cards:
 
-    Should you have any questions or would like to discuss your results further, feel free to reach out to your immediate supervisor."
+{managed_links}
 
-    View it here: {url}
+Thank you for your continued leadership and support in driving the department’s success.
     """,
-    "Default": """
-    Hello {first_name} {last_name},
+    "SC": """
+To: {email_address}
 
-    Your latest report is ready.
+Hi {first_name} {last_name}, 
 
-    View it here: {url}
+Good day!
+
+As part of our commitment to support your growth and success, we are sharing with you your Performance Report Card for the month of {month} {year}.
+
+This report provides a summary of your individual performance and achievements during the month, reflecting your progress against the department’s goals and expectations. We encourage you to review the details and take note of both your strengths and the areas where improvements can be made.
+
+Please find your updated Monthly Performance Report Card attached for your reference.
+
+Should you have any questions or would like to discuss your results further, feel free to reach out to your immediate supervisor."
+
+View it here: {url}
+""",
+"Default": """
+Hello {first_name} {last_name},
+
+Your latest report is ready.
+View it here: {url}
     """
 }
 
