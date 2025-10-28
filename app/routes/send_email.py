@@ -241,8 +241,7 @@ def send_sc_url(
                 url=link_info["url"]
             )
             logging.info("Sending email to recipients...")
-            # gmail_service.send_email(email, f"RE: {payload.branch.value} Monthly Performance", body_template)
-            print(body_template)
+            gmail_service.send_email(email, f"RE: {payload.branch.value} Monthly Performance", body_template)
             sent.append(email)
         return JSONResponse(
             content={
@@ -305,16 +304,14 @@ def send_grm_url(
             recipient_type=payload.recipient_type.value
         )
         logging.info("Sending email to recipients...")
-        print(body_template)
-        # gmail_service.send_email(
-        #     recipient_email=grm_email,
-        #     subject=f"RE: {payload.recipient_type} {payload.branch} Monthly Performance Report",
-        #     body=body_template
-        # )
+        gmail_service.send_email(
+            recipient_email=grm_email,
+            subject=f"RE: {payload.recipient_type.value} {payload.branch.value} Monthly Performance Report",
+            body=body_template
+        )
         return JSONResponse(
             content={
-                "status": "success",
-                "content": "Nothing yet."
+                "status": "success"
             },
             status_code=status.HTTP_200_OK
         )
