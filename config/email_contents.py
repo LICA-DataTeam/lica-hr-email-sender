@@ -8,7 +8,7 @@ Hi {first_name} {last_name},
 
 Good day!
 
-As part of the HR Performance Management initiative, we are pleased to share the updated Performance Report Cards of your team under the Vehicle Sales Department for the [Month/Quarter] of [Year].
+As part of the HR Performance Management initiative, we are pleased to share the updated Performance Report Cards of your team under the Vehicle Sales Department for the month of {month} {year}.
 
 These report cards summarize each team member’s individual performance based on the established KPIs and departmental targets. We encourage you to review these results to assess your team’s overall progress, identify top-performing employees, and address areas that may require additional coaching or support.
 
