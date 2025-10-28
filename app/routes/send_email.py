@@ -4,6 +4,7 @@ from components.utils import GmailService, GSheetService
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Union
 from config import SC_BASE_URL
+from datetime import date
 from enum import Enum
 import logging
 from app.common import (
@@ -44,6 +45,13 @@ class SendEmailRequest(BaseModel):
 class BranchEmailRequest(SendEmailRequest):
     branch: Branch
     recipient_type: RecipientType = RecipientType.SC
+
+def _default_month_year(year: int=None, month: int=None):
+    if not year and not month:
+        today = date.today()
+        year = today.year
+        month = today.month
+    return year, month
 
 def _split_name(full_name: str) -> tuple[str, str]:
     parts = full_name.strip().split()
@@ -177,8 +185,8 @@ def send_sc_url(
     payload: BranchEmailRequest,
     gmail_service: GmailService = Depends(get_gmail_service),
     gsheet_service: GSheetService = Depends(get_gsheet_service),
-    year: int = Query(..., description="Assessment year for the employee."),
-    month: int = Query(..., description="Assessment month for the employee."),
+    year: int = Query(None, description="Assessment year for the employee."),
+    month: int = Query(None, description="Assessment month for the employee."),
     emp_key: list[str] = Query(None, description="Employee key you want to look up.")
 ):
     recipients = _build_recipient_list(payload.branch, payload.recipient_type, gsheet_service)
@@ -190,6 +198,8 @@ def send_sc_url(
 
     sent = []
     skipped = []
+
+    year, month = _default_month_year(year, month)
 
     try:
         logging.info("Collecting employee links...")
@@ -266,8 +276,8 @@ def send_grm_url(
     payload: BranchEmailRequest,
     gmail_service: GmailService = Depends(get_gmail_service),
     gsheet_service: GSheetService = Depends(get_gsheet_service),
-    year: int = Query(..., description="Assessment year for the employee."),
-    month: int = Query(..., description="Assessment month for the employee."),
+    year: int = Query(None, description="Assessment year for the employee."),
+    month: int = Query(None, description="Assessment month for the employee."),
     grm_email: str = Query(..., description="GRM you want to look up.")
 ):
     recipients = _build_recipient_list(payload.branch, payload.recipient_type, gsheet_service)
@@ -282,6 +292,9 @@ def send_grm_url(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"No employees found for branch '{payload.branch}'"
         )
+
+    year, month = _default_month_year(year, month)
+
     try:
         logging.info("Collecting employee links...")
         links = generate_employee_links(
