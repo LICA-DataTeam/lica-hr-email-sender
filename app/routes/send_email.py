@@ -51,7 +51,11 @@ def _default_month_year(year: int=None, month: int=None):
         today = date.today()
         year = today.year
         month = today.month
-    return year, month
+    if month == 1:
+        prev_month = 12
+    else:
+        prev_month = month - 1
+    return year, prev_month
 
 def _split_name(full_name: str) -> tuple[str, str]:
     parts = full_name.strip().split()
